@@ -1,5 +1,6 @@
 package com.example.taskcatalyst.ui.screens
 
+import android.media.RingtoneManager
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -7,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -20,6 +22,7 @@ fun FocusScreen(
     onClose: () -> Unit,
     onComplete: () -> Unit
 ) {
+    val context = LocalContext.current
     var timeLeft by remember { mutableStateOf(25 * 60) } // 25 minutes in seconds
     var isRunning by remember { mutableStateOf(true) }
 
@@ -27,6 +30,10 @@ fun FocusScreen(
         while (isRunning && timeLeft > 0) {
             delay(1000L)
             timeLeft--
+        }
+        if (timeLeft == 0) {
+            isRunning = false
+            playAlarm(context)
         }
     }
 
@@ -92,4 +99,14 @@ private fun formatTime(seconds: Int): String {
     val minutes = seconds / 60
     val remainingSeconds = seconds % 60
     return "%02d:%02d".format(minutes, remainingSeconds)
+}
+
+private fun playAlarm(context: android.content.Context) {
+    try {
+        val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+        val r = RingtoneManager.getRingtone(context, notification)
+        r.play()
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
 }

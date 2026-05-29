@@ -6,8 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -15,15 +14,23 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.example.taskcatalyst.ui.TaskViewModel
 import com.example.taskcatalyst.ui.screens.AddTaskScreen
 import com.example.taskcatalyst.ui.screens.DashboardScreen
 import com.example.taskcatalyst.ui.screens.FocusScreen
 import com.example.taskcatalyst.ui.theme.TaskCatalystTheme
+import com.example.taskcatalyst.worker.NotificationWorker
+import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        setupNotificationWorker()
+
         setContent {
             TaskCatalystTheme {
                 Surface(
@@ -34,6 +41,16 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun setupNotificationWorker() {
+        val workRequest = PeriodicWorkRequestBuilder<NotificationWorker>(15, TimeUnit.MINUTES)
+            .build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "TaskNotificationWork",
+            ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
     }
 }
 
@@ -63,24 +80,22 @@ fun TaskCatalystApp() {
             route = "focus/{taskId}",
             arguments = listOf(navArgument("taskId") { type = NavType.IntType })
         ) { backStackEntry ->
-            val taskId = backStackEntry.arguments?.getInt("taskId")
-            // In a real app, we'd fetch the task by ID from the VM
-            // For simplicity, we'll find it in the current lists or pass it differently
-            // Here we'll just use a placeholder or handle the logic to find the task
-            val task = viewModel.q1Tasks.value.find { it.id == taskId }
-                ?: viewModel.q2Tasks.value.find { it.id == taskId }
+            val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
+            var task by remember { mutableStateOf<com.example.taskcatalyst.data.Task?>(null) }
             
-            if (task != null) {
+            LaunchedEffect(taskId) {
+                task = viewModel.getTaskById(taskId)
+            }
+            
+            task?.let { currentTask ->
                 FocusScreen(
-                    task = task,
+                    task = currentTask,
                     onClose = { navController.popBackStack() },
                     onComplete = {
-                        viewModel.toggleCompletion(task)
+                        viewModel.toggleCompletion(currentTask)
                         navController.popBackStack()
                     }
                 )
-            } else {
-                navController.popBackStack()
             }
         }
     }

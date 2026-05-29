@@ -66,4 +66,8 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             repository.delete(task)
         }
     }
+
+    suspend fun getTaskById(taskId: Int): Task? {
+        return repository.getTaskById(taskId)
+    }
 }
