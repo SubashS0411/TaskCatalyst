@@ -1,13 +1,22 @@
 package com.example.taskcatalyst.ui.screens
 
 import android.media.RingtoneManager
+import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -23,7 +32,8 @@ fun FocusScreen(
     onComplete: () -> Unit
 ) {
     val context = LocalContext.current
-    var timeLeft by remember { mutableStateOf(25 * 60) } // 25 minutes in seconds
+    val totalTime = 25 * 60
+    var timeLeft by remember { mutableStateOf(totalTime) }
     var isRunning by remember { mutableStateOf(true) }
 
     LaunchedEffect(isRunning) {
@@ -39,8 +49,8 @@ fun FocusScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Focus Mode") },
+            CenterAlignedTopAppBar(
+                title = { Text("Focus Timer", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
                         Icon(Icons.Default.Close, contentDescription = "Close")
@@ -54,44 +64,117 @@ fun FocusScreen(
                 .padding(padding)
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Text(
-                text = task.title,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(16.dp)
-            )
-            
             Spacer(modifier = Modifier.height(32.dp))
+
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                shape = CircleShape
+            ) {
+                Text(
+                    text = "Q${getQuadrantNumber(task)}: ${task.title}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
             
-            Text(
-                text = formatTime(timeLeft),
-                fontSize = 72.sp,
-                fontWeight = FontWeight.Thin
-            )
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(280.dp)
+            ) {
+                val progress = timeLeft.toFloat() / totalTime
+                val animatedProgress by animateFloatAsState(
+                    targetValue = progress,
+                    label = "TimerProgress"
+                )
+
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawCircle(
+                        color = Color.LightGray.copy(alpha = 0.3f),
+                        style = Stroke(width = 12.dp.toPx())
+                    )
+                    drawArc(
+                        color = Color(0xFF4CAF50),
+                        startAngle = -90f,
+                        sweepAngle = 360 * animatedProgress,
+                        useCenter = false,
+                        style = Stroke(width = 12.dp.toPx(), cap = StrokeCap.Round)
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = formatTime(timeLeft),
+                        fontSize = 64.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "REMAINING",
+                        letterSpacing = 2.sp,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.Gray
+                    )
+                }
+            }
             
-            Spacer(modifier = Modifier.height(48.dp))
-            
-            Row {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedIconButton(
+                    onClick = { 
+                        timeLeft = totalTime
+                        isRunning = false
+                    },
+                    modifier = Modifier.size(64.dp)
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Reset", modifier = Modifier.size(32.dp))
+                }
+
                 Button(
                     onClick = { isRunning = !isRunning },
-                    modifier = Modifier.padding(8.dp)
+                    modifier = Modifier
+                        .width(140.dp)
+                        .height(64.dp),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isRunning) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primary,
+                        contentColor = if (isRunning) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
-                    Text(if (isRunning) "Pause" else "Resume")
+                    Text(
+                        text = if (isRunning) "PAUSE" else "RESUME",
+                        fontWeight = FontWeight.ExtraBold
+                    )
                 }
-                
-                if (timeLeft == 0) {
-                    Button(
-                        onClick = onComplete,
-                        modifier = Modifier.padding(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Text("Mark Done")
-                    }
+            }
+
+            AnimatedVisibility(visible = timeLeft == 0) {
+                Button(
+                    onClick = onComplete,
+                    modifier = Modifier
+                        .fillMaxWidth(0.8f)
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                ) {
+                    Text("COMPLETED TASK", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 }
             }
         }
+    }
+}
+
+private fun getQuadrantNumber(task: Task): Int {
+    return when {
+        task.isUrgent && task.isImportant -> 1
+        !task.isUrgent && task.isImportant -> 2
+        task.isUrgent && !task.isImportant -> 3
+        else -> 4
     }
 }
 

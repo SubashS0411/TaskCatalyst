@@ -62,9 +62,14 @@ fun TaskCatalystApp() {
     NavHost(navController = navController, startDestination = "dashboard") {
         composable("dashboard") {
             DashboardScreen(
-                viewModel = viewModel,
+                q1Tasks = viewModel.q1Tasks,
+                q2Tasks = viewModel.q2Tasks,
+                q3Tasks = viewModel.q3Tasks,
+                q4Tasks = viewModel.q4Tasks,
                 onAddTaskClick = { navController.navigate("add_task") },
                 onTaskClick = { /* Handle edit if needed */ },
+                onToggleComplete = { viewModel.toggleCompletion(it) },
+                onDeleteTask = { viewModel.deleteTask(it) },
                 onStartFocus = { task ->
                     navController.navigate("focus/${task.id}")
                 }
@@ -72,7 +77,9 @@ fun TaskCatalystApp() {
         }
         composable("add_task") {
             AddTaskScreen(
-                viewModel = viewModel,
+                onAddTask = { title, desc, urgent, important ->
+                    viewModel.addTask(title, desc, urgent, important, null)
+                },
                 onBack = { navController.popBackStack() }
             )
         }
