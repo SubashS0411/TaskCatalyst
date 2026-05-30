@@ -112,7 +112,8 @@ fun DashboardScreen(
                     modifier = Modifier.weight(1f),
                     onTaskClick = onTaskClick,
                     onToggleComplete = onToggleComplete,
-                    onDeleteTask = onDeleteTask
+                    onDeleteTask = onDeleteTask,
+                    onStartFocus = onStartFocus
                 )
                 QuadrantCard(
                     title = "ELIMINATE",
@@ -124,7 +125,8 @@ fun DashboardScreen(
                     modifier = Modifier.weight(1f),
                     onTaskClick = onTaskClick,
                     onToggleComplete = onToggleComplete,
-                    onDeleteTask = onDeleteTask
+                    onDeleteTask = onDeleteTask,
+                    onStartFocus = onStartFocus
                 )
             }
         }
@@ -274,7 +276,7 @@ fun DashboardPreview() {
             Task(2, "Urgent Task", "Details", true, false)
         )
     )
-    MaterialTheme {
+    TaskCatalystTheme {
         DashboardScreen(
             q1Tasks = dummyTasks,
             q2Tasks = dummyTasks,

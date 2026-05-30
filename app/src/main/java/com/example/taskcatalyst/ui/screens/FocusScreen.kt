@@ -21,7 +21,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
 import com.example.taskcatalyst.data.Task
+import com.example.taskcatalyst.ui.theme.TaskCatalystTheme
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,11 +34,14 @@ fun FocusScreen(
     onComplete: () -> Unit
 ) {
     val context = LocalContext.current
-    val totalTime = 25 * 60
-    var timeLeft by remember { mutableStateOf(totalTime) }
+    val focusTime = 25 * 60
+    val breakTime = 5 * 60
+    var isBreak by remember { mutableStateOf(false) }
+    var totalTime by remember { mutableIntStateOf(focusTime) }
+    var timeLeft by remember { mutableIntStateOf(totalTime) }
     var isRunning by remember { mutableStateOf(true) }
 
-    LaunchedEffect(isRunning) {
+    LaunchedEffect(isRunning, isBreak) {
         while (isRunning && timeLeft > 0) {
             delay(1000L)
             timeLeft--
@@ -44,6 +49,14 @@ fun FocusScreen(
         if (timeLeft == 0) {
             isRunning = false
             playAlarm(context)
+            if (!isBreak) {
+                // Focus ended, start break automatically or wait for user?
+                // PRD says "5-minute break logic after timer completion"
+                // Let's toggle to break mode
+                isBreak = true
+                totalTime = breakTime
+                timeLeft = breakTime
+            }
         }
     }
 
@@ -69,15 +82,15 @@ fun FocusScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Surface(
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                color = if (isBreak) Color(0xFF81C784).copy(alpha = 0.3f) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
                 shape = CircleShape
             ) {
                 Text(
-                    text = "Q${getQuadrantNumber(task)}: ${task.title}",
+                    text = if (isBreak) "Break Time" else "Q${getQuadrantNumber(task)}: ${task.title}",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.primary
+                    color = if (isBreak) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary
                 )
             }
             
@@ -97,7 +110,7 @@ fun FocusScreen(
                         style = Stroke(width = 12.dp.toPx())
                     )
                     drawArc(
-                        color = Color(0xFF4CAF50),
+                        color = if (isBreak) Color(0xFF81C784) else Color(0xFF4CAF50),
                         startAngle = -90f,
                         sweepAngle = 360 * animatedProgress,
                         useCenter = false,
@@ -127,7 +140,13 @@ fun FocusScreen(
             ) {
                 OutlinedIconButton(
                     onClick = { 
-                        timeLeft = totalTime
+                        if (isBreak) {
+                            isBreak = false
+                            totalTime = focusTime
+                            timeLeft = focusTime
+                        } else {
+                            timeLeft = totalTime
+                        }
                         isRunning = false
                     },
                     modifier = Modifier.size(64.dp)
@@ -151,9 +170,17 @@ fun FocusScreen(
                         fontWeight = FontWeight.ExtraBold
                     )
                 }
+
+                OutlinedIconButton(
+                    onClick = onClose,
+                    modifier = Modifier.size(64.dp),
+                    colors = IconButtonDefaults.outlinedIconButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Abort", modifier = Modifier.size(32.dp))
+                }
             }
 
-            AnimatedVisibility(visible = timeLeft == 0) {
+            AnimatedVisibility(visible = timeLeft == 0 || isBreak) {
                 Button(
                     onClick = onComplete,
                     modifier = Modifier
@@ -166,6 +193,24 @@ fun FocusScreen(
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun FocusScreenPreview() {
+    TaskCatalystTheme {
+        FocusScreen(
+            task = Task(
+                id = 1,
+                title = "Study for Exam",
+                description = "Chapter 1-3",
+                isUrgent = true,
+                isImportant = true
+            ),
+            onClose = {},
+            onComplete = {}
+        )
     }
 }
 

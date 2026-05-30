@@ -16,18 +16,19 @@ class NotificationWorker(
     workerParams: WorkerParameters
 ) : CoroutineWorker(context, workerParams) {
 
-    override fun doWork(): Result {
+    override suspend fun doWork(): Result {
         val database = AppDatabase.getDatabase(applicationContext)
         val taskDao = database.taskDao()
 
-        // In a real app, we might check for tasks due in the next 15 minutes
-        // For this implementation, we'll look for any active task with a due date soon
-        // This is a simplified logic for the requirement.
+        val now = System.currentTimeMillis()
+        val fifteenMinutesLater = now + 15 * 60 * 1000
         
-        // We'll just show a generic notification if there are pending tasks for now
-        // to demonstrate WorkManager integration.
+        val upcomingTasks = taskDao.getTasksDueBetween(now, fifteenMinutesLater)
         
-        showNotification("Task Catalyst", "You have pending tasks to check!")
+        if (upcomingTasks.isNotEmpty()) {
+            val taskNames = upcomingTasks.joinToString { it.title }
+            showNotification("Upcoming Tasks", "Due soon: $taskNames")
+        }
 
         return Result.success()
     }

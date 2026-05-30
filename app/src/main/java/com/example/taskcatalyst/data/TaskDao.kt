@@ -27,4 +27,7 @@ interface TaskDao {
 
     @Query("SELECT * FROM tasks WHERE id = :taskId")
     suspend fun getTaskById(taskId: Int): Task?
+
+    @Query("SELECT * FROM tasks WHERE isCompleted = 0 AND dueDate IS NOT NULL AND dueDate BETWEEN :start AND :end")
+    suspend fun getTasksDueBetween(start: Long, end: Long): List<Task>
 }

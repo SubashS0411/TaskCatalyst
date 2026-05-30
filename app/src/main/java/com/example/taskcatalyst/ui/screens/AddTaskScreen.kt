@@ -1,7 +1,5 @@
 package com.example.taskcatalyst.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -11,28 +9,62 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.taskcatalyst.ui.TaskViewModel
 import com.example.taskcatalyst.ui.theme.*
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTaskScreen(
-    onAddTask: (String, String, Boolean, Boolean) -> Unit,
+    taskId: Int? = null,
+    getTaskById: (suspend (Int) -> com.example.taskcatalyst.data.Task?)? = null,
+    onAddTask: (String, String, Boolean, Boolean, Long?) -> Unit,
     onBack: () -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var isUrgent by remember { mutableStateOf(false) }
     var isImportant by remember { mutableStateOf(false) }
+    var dueDate by remember { mutableStateOf<Long?>(null) }
+    var isInitialized by remember { mutableStateOf(false) }
+
+    LaunchedEffect(taskId) {
+        if (taskId != null && !isInitialized && getTaskById != null) {
+            val task = getTaskById(taskId)
+            task?.let {
+                title = it.title
+                description = it.description
+                isUrgent = it.isUrgent
+                isImportant = it.isImportant
+                dueDate = it.dueDate
+            }
+            isInitialized = true
+        }
+    }
+
+    val context = LocalContext.current
+    val calendar = Calendar.getInstance()
+
+    val datePickerDialog = android.app.DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            calendar.set(year, month, dayOfMonth)
+            dueDate = calendar.timeInMillis
+        },
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH),
+        calendar.get(Calendar.DAY_OF_MONTH)
+    )
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Create New Task", fontWeight = FontWeight.Bold) },
+                title = { Text(if (taskId == null) "Create New Task" else "Edit Task", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -69,6 +101,36 @@ fun AddTaskScreen(
                 minLines = 3,
                 shape = RoundedCornerShape(12.dp)
             )
+
+            // Due Date Section
+            Surface(
+                onClick = { datePickerDialog.show() },
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Event, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text("Due Date", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            text = dueDate?.let { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(it) } ?: "Set a deadline (optional)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (dueDate == null) Color.Gray else MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    if (dueDate != null) {
+                        IconButton(onClick = { dueDate = null }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Clear date", modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
+            }
 
             Text(
                 "Priority Matrix",
@@ -135,7 +197,7 @@ fun AddTaskScreen(
             Button(
                 onClick = {
                     if (title.isNotBlank()) {
-                        onAddTask(title, description, isUrgent, isImportant)
+                        onAddTask(title, description, isUrgent, isImportant, dueDate)
                         onBack()
                     }
                 },
@@ -145,7 +207,7 @@ fun AddTaskScreen(
                 enabled = title.isNotBlank(),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Create Task", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(if (taskId == null) "Create Task" else "Update Task", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -155,7 +217,7 @@ fun AddTaskScreen(
 @Composable
 fun AddTaskPreview() {
     TaskCatalystTheme {
-        AddTaskScreen(onAddTask = { _, _, _, _ -> }, onBack = {})
+        AddTaskScreen(onAddTask = { _, _, _, _, _ -> }, onBack = {})
     }
 }
 

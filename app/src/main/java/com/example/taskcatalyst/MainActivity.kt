@@ -67,7 +67,7 @@ fun TaskCatalystApp() {
                 q3Tasks = viewModel.q3Tasks,
                 q4Tasks = viewModel.q4Tasks,
                 onAddTaskClick = { navController.navigate("add_task") },
-                onTaskClick = { /* Handle edit if needed */ },
+                onTaskClick = { task -> navController.navigate("edit_task/${task.id}") },
                 onToggleComplete = { viewModel.toggleCompletion(it) },
                 onDeleteTask = { viewModel.deleteTask(it) },
                 onStartFocus = { task ->
@@ -77,8 +77,22 @@ fun TaskCatalystApp() {
         }
         composable("add_task") {
             AddTaskScreen(
-                onAddTask = { title, desc, urgent, important ->
-                    viewModel.addTask(title, desc, urgent, important, null)
+                onAddTask = { title, desc, urgent, important, dueDate ->
+                    viewModel.addTask(title, desc, urgent, important, dueDate)
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = "edit_task/{taskId}",
+            arguments = listOf(navArgument("taskId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
+            AddTaskScreen(
+                taskId = taskId,
+                getTaskById = { viewModel.getTaskById(it) },
+                onAddTask = { title, desc, urgent, important, dueDate ->
+                    viewModel.updateTask(com.example.taskcatalyst.data.Task(id = taskId, title = title, description = desc, isUrgent = urgent, isImportant = important, dueDate = dueDate))
                 },
                 onBack = { navController.popBackStack() }
             )
